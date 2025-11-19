@@ -273,6 +273,7 @@ class RelativisticSimulator {
         const positions = this.relativisticMesh.geometry.attributes.position.array;
         const colors = this.relativisticMesh.geometry.attributes.color.array;
         const originalPositions = this.originalGeometry.attributes.position.array;
+        const originalColors = this.originalGeometry.attributes.color?.array;
 
         // Update each vertex
         for (let i = 0; i < originalPositions.length; i += 3) {
@@ -292,8 +293,18 @@ class RelativisticSimulator {
             // Calculate Doppler shift
             const dopplerFactor = this.getDopplerFactor(t, originalPos);
 
-            // Apply to color (start with white/gray base)
-            const baseColor = new THREE.Color(0xcccccc);
+            // Get base color from original geometry or use gray default
+            let baseColor;
+            if (originalColors) {
+                baseColor = new THREE.Color(
+                    originalColors[i],
+                    originalColors[i + 1],
+                    originalColors[i + 2]
+                );
+            } else {
+                baseColor = new THREE.Color(0xcccccc);
+            }
+
             const shiftedColor = this.applyDopplerShift(baseColor, dopplerFactor);
 
             colors[i] = shiftedColor.r;
@@ -307,27 +318,184 @@ class RelativisticSimulator {
     }
 
     loadDefaultModel() {
-        // Create a default model (sphere with some features)
-        const geometry = new THREE.SphereGeometry(1.5, 64, 64);
-
-        // Add some features to make distortion visible
-        const positions = geometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            const x = positions[i];
-            const y = positions[i + 1];
-            const z = positions[i + 2];
-
-            // Add some bumps (simple procedural displacement)
-            const noise = Math.sin(x * 3) * Math.cos(y * 3) * 0.2;
-            positions[i] *= (1 + noise);
-            positions[i + 1] *= (1 + noise);
-            positions[i + 2] *= (1 + noise);
-        }
-
-        geometry.computeVertexNormals();
-
+        // Create a detailed procedural face model
+        const geometry = this.createProceduralFace();
         this.setupRelativisticMesh(geometry);
         this.defaultModelLoaded = true;
+    }
+
+    createProceduralFace() {
+        // Start with a high-resolution sphere as base
+        const baseGeometry = new THREE.SphereGeometry(1.5, 128, 128);
+        const positions = baseGeometry.attributes.position.array;
+        const colors = new Float32Array(positions.length);
+
+        // Define face features in local coordinates
+        // Front of face is in +z direction
+
+        for (let i = 0; i < positions.length; i += 3) {
+            let x = positions[i];
+            let y = positions[i + 1];
+            let z = positions[i + 2];
+
+            // Normalize to get direction
+            const len = Math.sqrt(x*x + y*y + z*z);
+            const nx = x / len;
+            const ny = y / len;
+            const nz = z / len;
+
+            // Make head shape more elongated (ellipsoid)
+            y *= 1.2; // Taller head
+            x *= 0.9; // Narrower head
+            z *= 1.0;
+
+            // Flatten the back of the head
+            if (nz < -0.3) {
+                z *= 0.7;
+            }
+
+            // Add eyes (two spherical bulges)
+            const eyeLeftCenter = new THREE.Vector3(-0.5, 0.4, 1.2);
+            const eyeRightCenter = new THREE.Vector3(0.5, 0.4, 1.2);
+            const eyeRadius = 0.35;
+
+            const distToLeftEye = Math.sqrt(
+                Math.pow(x - eyeLeftCenter.x, 2) +
+                Math.pow(y - eyeLeftCenter.y, 2) +
+                Math.pow(z - eyeLeftCenter.z, 2)
+            );
+
+            const distToRightEye = Math.sqrt(
+                Math.pow(x - eyeRightCenter.x, 2) +
+                Math.pow(y - eyeRightCenter.y, 2) +
+                Math.pow(z - eyeRightCenter.z, 2)
+            );
+
+            // Eye bulges
+            if (distToLeftEye < eyeRadius && nz > 0.5) {
+                const bulge = (1 - distToLeftEye / eyeRadius) * 0.3;
+                z += bulge;
+                // Pupil (darker color)
+                if (distToLeftEye < 0.15) {
+                    colors[i] = 0.1;
+                    colors[i + 1] = 0.1;
+                    colors[i + 2] = 0.1;
+                } else {
+                    colors[i] = 0.9;
+                    colors[i + 1] = 0.9;
+                    colors[i + 2] = 0.9;
+                }
+            } else if (distToRightEye < eyeRadius && nz > 0.5) {
+                const bulge = (1 - distToRightEye / eyeRadius) * 0.3;
+                z += bulge;
+                // Pupil (darker color)
+                if (distToRightEye < 0.15) {
+                    colors[i] = 0.1;
+                    colors[i + 1] = 0.1;
+                    colors[i + 2] = 0.1;
+                } else {
+                    colors[i] = 0.9;
+                    colors[i + 1] = 0.9;
+                    colors[i + 2] = 0.9;
+                }
+            } else {
+                // Skin tone base
+                colors[i] = 0.9;
+                colors[i + 1] = 0.75;
+                colors[i + 2] = 0.65;
+            }
+
+            // Add nose (triangular protrusion in center)
+            if (Math.abs(x) < 0.3 && y > -0.2 && y < 0.4 && nz > 0.6) {
+                const noseFactor = (0.3 - Math.abs(x)) / 0.3;
+                const heightFactor = 1 - Math.abs(y - 0.1) / 0.5;
+                const noseBulge = noseFactor * heightFactor * 0.4;
+                z += noseBulge;
+
+                // Nostrils (darker)
+                if (y < 0.0 && Math.abs(x) > 0.1 && Math.abs(x) < 0.25) {
+                    colors[i] *= 0.7;
+                    colors[i + 1] *= 0.7;
+                    colors[i + 2] *= 0.7;
+                }
+            }
+
+            // Add mouth (indentation)
+            if (Math.abs(x) < 0.5 && y > -0.8 && y < -0.3 && nz > 0.5) {
+                const mouthWidth = Math.pow(1 - Math.abs(x) / 0.5, 2);
+                const mouthHeight = 1 - Math.abs(y + 0.55) / 0.25;
+                const mouthDepth = mouthWidth * mouthHeight * 0.15;
+                z -= mouthDepth;
+
+                // Lips (slightly reddish)
+                if (Math.abs(y + 0.55) < 0.1) {
+                    colors[i] = 0.8;
+                    colors[i + 1] = 0.4;
+                    colors[i + 2] = 0.4;
+                }
+            }
+
+            // Add ears
+            const earLeftCenter = new THREE.Vector3(-1.2, 0.0, 0.0);
+            const earRightCenter = new THREE.Vector3(1.2, 0.0, 0.0);
+
+            if (Math.abs(y) < 0.6) {
+                // Left ear
+                if (x < -0.9 && nz > -0.5 && nz < 0.5) {
+                    const earBulge = (1.2 - Math.abs(x)) * 0.3;
+                    x -= earBulge;
+                    z += earBulge * 0.2 * Math.sin(y * 2);
+                }
+                // Right ear
+                if (x > 0.9 && nz > -0.5 && nz < 0.5) {
+                    const earBulge = (1.2 - Math.abs(x)) * 0.3;
+                    x += earBulge;
+                    z += earBulge * 0.2 * Math.sin(y * 2);
+                }
+            }
+
+            // Add some eyebrows (color only)
+            if (y > 0.6 && y < 0.8 && nz > 0.7) {
+                if ((x > 0.2 && x < 0.7) || (x < -0.2 && x > -0.7)) {
+                    colors[i] *= 0.5;
+                    colors[i + 1] *= 0.4;
+                    colors[i + 2] *= 0.3;
+                }
+            }
+
+            // Add some hair texture on top
+            if (y > 0.8 && nz > -0.5) {
+                const hairNoise = Math.sin(x * 15) * Math.cos(z * 15) * 0.05;
+                y += Math.abs(hairNoise);
+                // Hair color
+                colors[i] = 0.3;
+                colors[i + 1] = 0.2;
+                colors[i + 2] = 0.15;
+            }
+
+            // Add facial structure (cheekbones)
+            if (Math.abs(x) > 0.5 && Math.abs(x) < 1.0 && y > -0.2 && y < 0.3 && nz > 0.3) {
+                const cheekFactor = (Math.abs(x) - 0.5) / 0.5;
+                z += cheekFactor * 0.15;
+            }
+
+            // Chin
+            if (Math.abs(x) < 0.4 && y < -0.7 && nz > 0.4) {
+                const chinBulge = (1 - Math.abs(x) / 0.4) * 0.2;
+                z += chinBulge;
+            }
+
+            // Update positions
+            positions[i] = x;
+            positions[i + 1] = y;
+            positions[i + 2] = z;
+        }
+
+        // Set the colors attribute
+        baseGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        baseGeometry.computeVertexNormals();
+
+        return baseGeometry;
     }
 
     loadModelFromFile(file) {

@@ -125,7 +125,7 @@
         </div>
 
         <button id="reset">Reset Animation</button>
-        <button id="upload">Upload 3D Model (.glb/.gltf)</button>
+        <button id="upload" style="background: #666;">Upload Custom Model (optional)</button>
         <input type="file" id="file-input" accept=".glb,.gltf" style="display: none;">
     </div>
 
@@ -135,8 +135,8 @@
         Observer-relative velocity: <span id="rel-velocity">0.00</span>c
     </div>
 
-    <div id="loading">
-        Loading simulation...
+    <div id="loading" style="display: none;">
+        Loading model...
     </div>
 
     <script type="importmap">
