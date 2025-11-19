@@ -27,3 +27,8 @@ npm-debug.log*
 # Temporary files
 *.tmp
 .cache/
+
+# 3D model files (can be large)
+# Remove this line if you want to commit your model
+*.glb
+*.gltf

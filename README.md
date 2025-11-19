@@ -61,18 +61,26 @@ Objects are contracted along their direction of motion by the Lorentz factor γ.
 2. **Export the model**:
    - Open the scan in Polycam
    - Tap "Export"
-   - Choose "GLTF" or "GLB" format
+   - Choose "GLB" format (recommended)
+   - Quality: High
    - Download to your computer
 
-3. **Upload to simulator**:
-   - Click "Upload 3D Model" in the control panel
-   - Select your .glb or .gltf file
-   - The model will automatically be centered and scaled
+3. **Add to project**:
+   - Rename the file to `ilany.glb`
+   - Drop it into the `model/` folder
+   - Restart the simulation
+   - The model will automatically load on startup!
+
+4. **Alternative - Upload at runtime**:
+   - Click "Upload Custom Model" button
+   - Select any .glb or .gltf file
+   - Great for testing different models
 
 #### Model Requirements:
-- Formats: `.glb` or `.gltf`
+- Formats: `.glb` (preferred) or `.gltf`
 - High-poly models (more vertices) show more detailed distortion
 - Models are automatically centered and scaled to fit
+- Falls back to procedural face if `model/ilany.glb` is not found
 
 ## Controls
 

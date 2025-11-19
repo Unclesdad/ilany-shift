@@ -318,7 +318,49 @@ class RelativisticSimulator {
     }
 
     loadDefaultModel() {
-        // Create a detailed procedural face model
+        // Try to load the model from model/ilany.glb first
+        const loader = new GLTFLoader();
+
+        loader.load(
+            'model/ilany.glb',
+            (gltf) => {
+                // Successfully loaded ilany.glb
+                console.log('Loaded model/ilany.glb');
+                let geometry = null;
+
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh && !geometry) {
+                        geometry = child.geometry.clone();
+                    }
+                });
+
+                if (geometry) {
+                    // Center and scale the geometry
+                    geometry.center();
+                    geometry.computeBoundingSphere();
+                    const scale = 2.0 / geometry.boundingSphere.radius;
+                    geometry.scale(scale, scale, scale);
+
+                    this.setupRelativisticMesh(geometry);
+                    this.defaultModelLoaded = true;
+                } else {
+                    console.warn('No mesh found in ilany.glb, using procedural face');
+                    this.loadProceduralFace();
+                }
+            },
+            (progress) => {
+                console.log('Loading ilany.glb:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
+            },
+            (error) => {
+                // Failed to load - use procedural face as fallback
+                console.log('model/ilany.glb not found, using procedural face');
+                this.loadProceduralFace();
+            }
+        );
+    }
+
+    loadProceduralFace() {
+        // Create a detailed procedural face model as fallback
         const geometry = this.createProceduralFace();
         this.setupRelativisticMesh(geometry);
         this.defaultModelLoaded = true;

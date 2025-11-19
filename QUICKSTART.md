@@ -19,7 +19,7 @@ npm run dev
 
 Then open: `http://localhost:8000`
 
-## Getting Your Teacher's 3D Model from Polycam
+## Adding Your Teacher's 3D Model from Polycam
 
 ### Step 1: Capture the Scan
 1. Open **Polycam** on your phone
@@ -31,15 +31,17 @@ Then open: `http://localhost:8000`
 1. Open your completed scan
 2. Tap the **Share** icon
 3. Select **Export**
-4. Choose format: **GLTF** or **GLB**
+4. Choose format: **GLB** (recommended - single file)
 5. Quality: Choose **High** for more detail
 6. Download to your computer
 
-### Step 3: Load into Simulator
-1. Run the simulator (open `index.html`)
-2. Click **"Upload 3D Model"** button
-3. Select your exported `.glb` or `.gltf` file
+### Step 3: Add to Project
+1. Rename the exported file to `ilany.glb`
+2. Drop it into the `model/` folder in this project
+3. Run the simulator (open `index.html`)
 4. Watch your teacher's face get relativistically distorted!
+
+**Note:** If no model is found, a procedural face will be used as fallback. You can also use the "Upload Custom Model" button to try different models without replacing the file.
 
 ## First-Time Experience
 
