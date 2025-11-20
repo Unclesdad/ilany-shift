@@ -415,8 +415,12 @@ class RelativisticSimulator {
                 if (uvs) {
                     // Sample texture at UV coordinates for each vertex
                     for (let i = 0; i < vertexCount; i++) {
-                        const u = uvs.getX(i);
-                        const v = 1.0 - uvs.getY(i); // Flip V coordinate
+                        let u = uvs.getX(i);
+                        let v = uvs.getY(i); // Don't flip for GLTF
+
+                        // Clamp UV coordinates to valid range
+                        u = Math.max(0, Math.min(1, u));
+                        v = Math.max(0, Math.min(1, v));
 
                         const x = Math.floor(u * (canvas.width - 1));
                         const y = Math.floor(v * (canvas.height - 1));
