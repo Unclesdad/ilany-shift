@@ -653,13 +653,17 @@ class RelativisticSimulator {
 
         // Create geometry with vertex colors
         const newGeometry = geometry.clone();
-        const colors = new Float32Array(newGeometry.attributes.position.count * 3);
-        for (let i = 0; i < colors.length; i += 3) {
-            colors[i] = 0.8;
-            colors[i + 1] = 0.8;
-            colors[i + 2] = 0.8;
+
+        // Only create grey colors if the geometry doesn't already have colors
+        if (!newGeometry.attributes.color) {
+            const colors = new Float32Array(newGeometry.attributes.position.count * 3);
+            for (let i = 0; i < colors.length; i += 3) {
+                colors[i] = 0.8;
+                colors[i + 1] = 0.8;
+                colors[i + 2] = 0.8;
+            }
+            newGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         }
-        newGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         // Create material that uses vertex colors
         const material = new THREE.MeshPhongMaterial({
