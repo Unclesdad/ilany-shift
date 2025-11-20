@@ -194,7 +194,7 @@ class RelativisticSimulator {
         // Distance from observer: |r(t') - r_obs| = c * (t - t')
 
         // Object trajectory: moves along x-axis at distance z = closestDistance
-        // x(t') = -50 + v*C_VISUAL*t' (starts at x = -50)
+        // x(t') = x0 + v*C_VISUAL*t'
         // y(t') = 0
         // z(t') = closestDistance
 
@@ -204,7 +204,9 @@ class RelativisticSimulator {
         // This is a quadratic equation in t'
 
         const v = beta * C_VISUAL;
-        const x0 = -50; // Starting position
+        // Scale starting position so object passes through x=0 at t=0
+        // This ensures it passes by the camera for any velocity
+        const x0 = 0;
 
         // Vertex position in object frame (relative to object center)
         const vx = vertexPos.x;
@@ -248,7 +250,7 @@ class RelativisticSimulator {
 
         // Position at delayed time
         const v = this.velocity * C_VISUAL;
-        const x0 = -50;
+        const x0 = 0; // Object passes through x=0 at t=0
 
         const x = x0 + v * tDelayed + vertexPosLocal.x;
         const y = vertexPosLocal.y;
@@ -262,7 +264,7 @@ class RelativisticSimulator {
         const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
 
         const v = this.velocity * C_VISUAL;
-        const x0 = -50;
+        const x0 = 0; // Object passes through x=0 at t=0
 
         const x = x0 + v * tDelayed + vertexPosLocal.x;
         const y = vertexPosLocal.y;
@@ -680,7 +682,7 @@ class RelativisticSimulator {
         document.getElementById('time-display').textContent = this.currentTime.toFixed(2);
 
         const v = this.velocity * C_VISUAL;
-        const x = -50 + v * this.currentTime;
+        const x = 0 + v * this.currentTime; // x=0 at t=0
         document.getElementById('position-display').textContent = x.toFixed(2);
         document.getElementById('rel-velocity').textContent = this.velocity.toFixed(3);
 
