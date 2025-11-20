@@ -39,19 +39,21 @@ class RelativisticSimulator {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
         // Setup camera
-        // Observer at origin, looking toward where object will pass to the side
-        this.camera.position.set(0, 0, 0);
+        // Observer effectively at origin, looking forward
+        // Position camera very slightly offset so OrbitControls can rotate
+        this.camera.position.set(0, 0, 0.01);
         this.camera.lookAt(0, 0, this.closestDistance);
 
-        // Add orbit controls for rotation only (camera stays at origin)
+        // Add orbit controls for rotation (camera orbits very close to origin)
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.target.set(0, 0, 0); // Target at camera position
+        this.controls.target.set(0, 0, 0); // Target at origin
         this.controls.enableZoom = false; // No zooming
         this.controls.enablePan = false; // No panning
-        this.controls.minDistance = 0;
-        this.controls.maxDistance = 0; // Lock camera at origin
+        this.controls.enableRotate = true; // Allow rotation
+        this.controls.minDistance = 0.01; // Lock distance at 1cm (effectively at origin)
+        this.controls.maxDistance = 0.01;
 
         // Add lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
