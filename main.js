@@ -37,13 +37,15 @@ class RelativisticSimulator {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
         // Setup camera
+        // Observer at origin, looking toward where object will pass
         this.camera.position.set(0, 0, 0);
-        this.camera.lookAt(0, 0, -1);
+        this.camera.lookAt(0, this.closestDistance, 0);
 
         // Add orbit controls for better viewing
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        this.controls.target.set(0, this.closestDistance, 0);
 
         // Add lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
