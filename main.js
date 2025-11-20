@@ -16,8 +16,9 @@ class RelativisticSimulator {
         this.velocity = 0.9; // Fraction of c
         this.closestDistance = 5; // Meters
         this.timeScale = 1.0;
-        this.currentTime = -30; // Start time (negative so object approaches from distance)
+        this.currentTime = -10; // Start time (negative so object approaches from distance)
         this.animationRunning = true;
+        this.manualTimeControl = false; // Track if user is manually controlling time
 
         // Model
         this.originalGeometry = null;
@@ -99,6 +100,21 @@ class RelativisticSimulator {
             distanceValue.textContent = `${this.closestDistance.toFixed(1)} m`;
         });
 
+        // Time slider control
+        const timeSlider = document.getElementById('time-slider');
+        const timeSliderValue = document.getElementById('time-slider-value');
+
+        timeSlider.addEventListener('input', (e) => {
+            this.currentTime = parseFloat(e.target.value);
+            timeSliderValue.textContent = `${this.currentTime.toFixed(1)} s`;
+            this.manualTimeControl = true;
+        });
+
+        timeSlider.addEventListener('change', (e) => {
+            // When user releases the slider, resume animation
+            this.manualTimeControl = false;
+        });
+
         // Time scale control
         const timeScaleSlider = document.getElementById('time-scale');
         const timeScaleValue = document.getElementById('time-scale-value');
@@ -108,10 +124,20 @@ class RelativisticSimulator {
             timeScaleValue.textContent = `${this.timeScale.toFixed(1)}x`;
         });
 
+        // Play/Pause button
+        const playPauseButton = document.getElementById('play-pause');
+        playPauseButton.addEventListener('click', () => {
+            this.animationRunning = !this.animationRunning;
+            playPauseButton.textContent = this.animationRunning ? 'Pause Animation' : 'Resume Animation';
+        });
+
         // Reset button
         document.getElementById('reset').addEventListener('click', () => {
-            this.currentTime = -30;
+            this.currentTime = -10;
             this.animationRunning = true;
+            playPauseButton.textContent = 'Pause Animation';
+            timeSlider.value = -10;
+            timeSliderValue.textContent = '-10.0 s';
         });
 
         // Upload button
@@ -129,6 +155,7 @@ class RelativisticSimulator {
         // Initialize displays
         velocitySlider.dispatchEvent(new Event('input'));
         distanceSlider.dispatchEvent(new Event('input'));
+        timeSlider.dispatchEvent(new Event('input'));
         timeScaleSlider.dispatchEvent(new Event('input'));
     }
 
@@ -641,6 +668,14 @@ class RelativisticSimulator {
         const x = -50 + v * this.currentTime;
         document.getElementById('position-display').textContent = x.toFixed(2);
         document.getElementById('rel-velocity').textContent = this.velocity.toFixed(3);
+
+        // Update time slider if not being manually controlled
+        if (!this.manualTimeControl) {
+            const timeSlider = document.getElementById('time-slider');
+            const timeSliderValue = document.getElementById('time-slider-value');
+            timeSlider.value = this.currentTime;
+            timeSliderValue.textContent = `${this.currentTime.toFixed(1)} s`;
+        }
     }
 
     onWindowResize() {
@@ -652,17 +687,18 @@ class RelativisticSimulator {
     animate() {
         requestAnimationFrame(() => this.animate());
 
-        if (this.animationRunning) {
+        if (this.animationRunning && !this.manualTimeControl) {
             this.currentTime += 0.016 * this.timeScale; // Approximately 60 FPS
 
             // Reset if object has passed far away
-            if (this.currentTime > 30) {
-                this.currentTime = -30;
+            if (this.currentTime > 10) {
+                this.currentTime = -10;
             }
-
-            this.updateRelativisticMesh();
-            this.updateInfo();
         }
+
+        // Always update mesh and info, even when paused or manually controlled
+        this.updateRelativisticMesh();
+        this.updateInfo();
 
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
