@@ -383,36 +383,55 @@ class RelativisticSimulator {
 
         // Check if material has a texture map
         if (material && material.map && material.map.image) {
-            console.log('Extracting colors from texture map');
             const texture = material.map;
+
+            // Make sure texture image is fully loaded
+            if (!texture.image.complete || texture.image.naturalWidth === 0) {
+                console.warn('Texture not fully loaded, using base color');
+                this.applyBaseColor(colors, vertexCount, material);
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                return;
+            }
+
+            console.log('Extracting colors from texture map');
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
             canvas.width = texture.image.width;
             canvas.height = texture.image.height;
-            ctx.drawImage(texture.image, 0, 0);
 
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const uvs = geometry.attributes.uv;
+            try {
+                ctx.drawImage(texture.image, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const uvs = geometry.attributes.uv;
 
-            if (uvs) {
-                // Sample texture at UV coordinates for each vertex
-                for (let i = 0; i < vertexCount; i++) {
-                    const u = uvs.getX(i);
-                    const v = 1.0 - uvs.getY(i); // Flip V coordinate
+                if (uvs) {
+                    // Sample texture at UV coordinates for each vertex
+                    for (let i = 0; i < vertexCount; i++) {
+                        const u = uvs.getX(i);
+                        const v = 1.0 - uvs.getY(i); // Flip V coordinate
 
-                    const x = Math.floor(u * (canvas.width - 1));
-                    const y = Math.floor(v * (canvas.height - 1));
+                        const x = Math.floor(u * (canvas.width - 1));
+                        const y = Math.floor(v * (canvas.height - 1));
 
-                    const pixelIndex = (y * canvas.width + x) * 4;
+                        const pixelIndex = (y * canvas.width + x) * 4;
 
-                    colors[i * 3] = imageData.data[pixelIndex] / 255;
-                    colors[i * 3 + 1] = imageData.data[pixelIndex + 1] / 255;
-                    colors[i * 3 + 2] = imageData.data[pixelIndex + 2] / 255;
+                        colors[i * 3] = imageData.data[pixelIndex] / 255;
+                        colors[i * 3 + 1] = imageData.data[pixelIndex + 1] / 255;
+                        colors[i * 3 + 2] = imageData.data[pixelIndex + 2] / 255;
+                    }
+                    console.log('Applied texture colors to', vertexCount, 'vertices');
+                    console.log('Sample colors:', {
+                        first: [colors[0], colors[1], colors[2]],
+                        mid: [colors[Math.floor(vertexCount/2)*3], colors[Math.floor(vertexCount/2)*3+1], colors[Math.floor(vertexCount/2)*3+2]],
+                        last: [colors[vertexCount*3-3], colors[vertexCount*3-2], colors[vertexCount*3-1]]
+                    });
+                } else {
+                    console.warn('No UV coordinates found, using base color');
+                    this.applyBaseColor(colors, vertexCount, material);
                 }
-                console.log('Applied texture colors to', vertexCount, 'vertices');
-            } else {
-                console.warn('No UV coordinates found, using base color');
+            } catch (error) {
+                console.error('Error sampling texture:', error);
                 this.applyBaseColor(colors, vertexCount, material);
             }
         } else {
