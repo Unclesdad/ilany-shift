@@ -15,6 +15,7 @@ class RelativisticSimulator {
         // Simulation parameters
         this.velocity = 0.9; // Fraction of c
         this.closestDistance = 5; // Meters
+        this.rotation = Math.PI / 2; // 90 degrees in radians (CCW around Y-axis)
         this.timeScale = 1.0;
         this.currentTime = -10; // Start time (negative so object approaches from distance)
         this.animationRunning = true;
@@ -97,6 +98,16 @@ class RelativisticSimulator {
             distanceValue.textContent = `${this.closestDistance.toFixed(1)} m`;
         });
 
+        // Rotation control
+        const rotationSlider = document.getElementById('rotation');
+        const rotationValue = document.getElementById('rotation-value');
+
+        rotationSlider.addEventListener('input', (e) => {
+            const degrees = parseFloat(e.target.value);
+            this.rotation = degrees * Math.PI / 180; // Convert to radians
+            rotationValue.textContent = `${degrees.toFixed(0)}°`;
+        });
+
         // Time slider control
         const timeSlider = document.getElementById('time-slider');
         const timeSliderValue = document.getElementById('time-slider-value');
@@ -152,12 +163,25 @@ class RelativisticSimulator {
         // Initialize displays
         velocitySlider.dispatchEvent(new Event('input'));
         distanceSlider.dispatchEvent(new Event('input'));
+        rotationSlider.dispatchEvent(new Event('input'));
         timeSlider.dispatchEvent(new Event('input'));
         timeScaleSlider.dispatchEvent(new Event('input'));
     }
 
     getLorentzFactor(beta) {
         return 1.0 / Math.sqrt(1.0 - beta * beta);
+    }
+
+    // Rotate a vertex around the Y-axis
+    rotateVertexY(vertex, angle) {
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+
+        return new THREE.Vector3(
+            vertex.x * cos + vertex.z * sin,
+            vertex.y,
+            -vertex.x * sin + vertex.z * cos
+        );
     }
 
     // Calculate the delayed time for a point
@@ -316,8 +340,11 @@ class RelativisticSimulator {
                 originalPositions[i + 2]
             );
 
-            // Get apparent position
-            const apparentPos = this.getApparentPosition(t, originalPos);
+            // Apply rotation to the original position
+            const rotatedPos = this.rotateVertexY(originalPos, this.rotation);
+
+            // Get apparent position with rotation applied
+            const apparentPos = this.getApparentPosition(t, rotatedPos);
 
             positions[i] = apparentPos.x;
             positions[i + 1] = apparentPos.y;
