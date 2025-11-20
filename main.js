@@ -386,8 +386,15 @@ class RelativisticSimulator {
             const texture = material.map;
 
             // Make sure texture image is fully loaded
-            if (!texture.image.complete || texture.image.naturalWidth === 0) {
-                console.warn('Texture not fully loaded, using base color');
+            // Check if texture has valid dimensions (works for both HTMLImageElement and other image types)
+            if ((!texture.image.width || texture.image.width === 0) &&
+                (!texture.image.naturalWidth || texture.image.naturalWidth === 0)) {
+                console.warn('Texture not fully loaded, using base color', {
+                    width: texture.image.width,
+                    height: texture.image.height,
+                    naturalWidth: texture.image.naturalWidth,
+                    complete: texture.image.complete
+                });
                 this.applyBaseColor(colors, vertexCount, material);
                 geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
                 return;
