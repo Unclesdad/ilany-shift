@@ -55,11 +55,11 @@ class RelativisticSimulator {
         this.controls.minDistance = 0.01; // Lock distance at 1cm (effectively at origin)
         this.controls.maxDistance = 0.01;
 
-        // Add lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        // Add lighting - reduced intensity to not wash out vertex colors
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         this.scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.3);
         directionalLight.position.set(5, 5, 5);
         this.scene.add(directionalLight);
 
@@ -769,10 +769,10 @@ class RelativisticSimulator {
         }
 
         // Create material that uses vertex colors
-        const material = new THREE.MeshPhongMaterial({
+        // MeshLambertMaterial handles vertex colors better than Phong
+        const material = new THREE.MeshLambertMaterial({
             vertexColors: true,
-            side: THREE.DoubleSide,
-            flatShading: false
+            side: THREE.DoubleSide
         });
 
         this.relativisticMesh = new THREE.Mesh(newGeometry, material);
