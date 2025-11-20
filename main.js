@@ -28,7 +28,7 @@ class RelativisticSimulator {
         this.defaultModelLoaded = false;
 
         // Display options
-        this.showActualPosition = true;
+        this.showActualPosition = false;
         this.enableDopplerShift = false;
 
         this.init();
