@@ -376,8 +376,11 @@ class RelativisticSimulator {
         // Try to load the model from model/ilany.glb first
         const loader = new GLTFLoader();
 
+        // Add cache-busting parameter to force reload if file changes
+        const cacheBuster = '?t=' + new Date().getTime();
+
         loader.load(
-            'model/ilany.glb',
+            'model/ilany.glb' + cacheBuster,
             (gltf) => {
                 // Successfully loaded ilany.glb
                 console.log('Loaded model/ilany.glb');
