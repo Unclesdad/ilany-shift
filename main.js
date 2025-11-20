@@ -377,32 +377,66 @@ class RelativisticSimulator {
         const vertexCount = geometry.attributes.position.count;
         const colors = new Float32Array(vertexCount * 3);
 
-        let baseColor = new THREE.Color(0.8, 0.8, 0.8); // Default grey
-
-        // Try to get color from material
-        if (material) {
-            if (Array.isArray(material)) {
-                // Multiple materials - use first one
-                material = material[0];
-            }
-
-            if (material.color) {
-                baseColor = material.color;
-            } else if (material.map) {
-                // Has texture - use white so texture shows through
-                baseColor = new THREE.Color(1, 1, 1);
-            }
+        if (Array.isArray(material)) {
+            material = material[0];
         }
 
-        // Apply the base color to all vertices
+        // Check if material has a texture map
+        if (material && material.map && material.map.image) {
+            console.log('Extracting colors from texture map');
+            const texture = material.map;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = texture.image.width;
+            canvas.height = texture.image.height;
+            ctx.drawImage(texture.image, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const uvs = geometry.attributes.uv;
+
+            if (uvs) {
+                // Sample texture at UV coordinates for each vertex
+                for (let i = 0; i < vertexCount; i++) {
+                    const u = uvs.getX(i);
+                    const v = 1.0 - uvs.getY(i); // Flip V coordinate
+
+                    const x = Math.floor(u * (canvas.width - 1));
+                    const y = Math.floor(v * (canvas.height - 1));
+
+                    const pixelIndex = (y * canvas.width + x) * 4;
+
+                    colors[i * 3] = imageData.data[pixelIndex] / 255;
+                    colors[i * 3 + 1] = imageData.data[pixelIndex + 1] / 255;
+                    colors[i * 3 + 2] = imageData.data[pixelIndex + 2] / 255;
+                }
+                console.log('Applied texture colors to', vertexCount, 'vertices');
+            } else {
+                console.warn('No UV coordinates found, using base color');
+                this.applyBaseColor(colors, vertexCount, material);
+            }
+        } else {
+            // No texture, use material base color
+            this.applyBaseColor(colors, vertexCount, material);
+        }
+
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    }
+
+    applyBaseColor(colors, vertexCount, material) {
+        let baseColor = new THREE.Color(0.8, 0.8, 0.8);
+
+        if (material && material.color) {
+            baseColor = material.color;
+        }
+
         for (let i = 0; i < vertexCount; i++) {
             colors[i * 3] = baseColor.r;
             colors[i * 3 + 1] = baseColor.g;
             colors[i * 3 + 2] = baseColor.b;
         }
 
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        console.log('Applied material color to geometry:', baseColor);
+        console.log('Applied base color:', baseColor);
     }
 
     loadDefaultModel() {
