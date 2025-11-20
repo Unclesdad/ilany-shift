@@ -372,6 +372,39 @@ class RelativisticSimulator {
         this.relativisticMesh.geometry.computeVertexNormals();
     }
 
+    addMaterialColorsToGeometry(geometry, material) {
+        // Extract color from material and apply as vertex colors
+        const vertexCount = geometry.attributes.position.count;
+        const colors = new Float32Array(vertexCount * 3);
+
+        let baseColor = new THREE.Color(0.8, 0.8, 0.8); // Default grey
+
+        // Try to get color from material
+        if (material) {
+            if (Array.isArray(material)) {
+                // Multiple materials - use first one
+                material = material[0];
+            }
+
+            if (material.color) {
+                baseColor = material.color;
+            } else if (material.map) {
+                // Has texture - use white so texture shows through
+                baseColor = new THREE.Color(1, 1, 1);
+            }
+        }
+
+        // Apply the base color to all vertices
+        for (let i = 0; i < vertexCount; i++) {
+            colors[i * 3] = baseColor.r;
+            colors[i * 3 + 1] = baseColor.g;
+            colors[i * 3 + 2] = baseColor.b;
+        }
+
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        console.log('Applied material color to geometry:', baseColor);
+    }
+
     loadDefaultModel() {
         // Try to load the model from model/ilany.glb first
         const loader = new GLTFLoader();
@@ -385,14 +418,21 @@ class RelativisticSimulator {
                 // Successfully loaded ilany.glb
                 console.log('Loaded model/ilany.glb');
                 let geometry = null;
+                let material = null;
 
                 gltf.scene.traverse((child) => {
                     if (child.isMesh && !geometry) {
                         geometry = child.geometry.clone();
+                        material = child.material;
                     }
                 });
 
                 if (geometry) {
+                    // Add material color as vertex colors if geometry doesn't have them
+                    if (!geometry.attributes.color && material) {
+                        this.addMaterialColorsToGeometry(geometry, material);
+                    }
+
                     // Center and scale the geometry
                     geometry.center();
                     geometry.computeBoundingSphere();
@@ -609,14 +649,21 @@ class RelativisticSimulator {
             (gltf) => {
                 // Extract geometry from loaded model
                 let geometry = null;
+                let material = null;
 
                 gltf.scene.traverse((child) => {
                     if (child.isMesh && !geometry) {
                         geometry = child.geometry.clone();
+                        material = child.material;
                     }
                 });
 
                 if (geometry) {
+                    // Add material color as vertex colors if geometry doesn't have them
+                    if (!geometry.attributes.color && material) {
+                        this.addMaterialColorsToGeometry(geometry, material);
+                    }
+
                     // Center and scale the geometry
                     geometry.center();
                     geometry.computeBoundingSphere();
