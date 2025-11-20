@@ -42,12 +42,15 @@ class RelativisticSimulator {
         this.camera.position.set(0, 0, 0);
         this.camera.lookAt(0, 0, this.closestDistance);
 
-        // Add orbit controls for better viewing
+        // Add orbit controls for rotation only (camera stays at origin)
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.target.set(0, 0, this.closestDistance);
-        this.controls.enableZoom = true;
+        this.controls.target.set(0, 0, 0); // Target at camera position
+        this.controls.enableZoom = false; // No zooming
+        this.controls.enablePan = false; // No panning
+        this.controls.minDistance = 0;
+        this.controls.maxDistance = 0; // Lock camera at origin
 
         // Add lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -65,13 +68,6 @@ class RelativisticSimulator {
         // Add axes helper
         const axesHelper = new THREE.AxesHelper(5);
         this.scene.add(axesHelper);
-
-        // Add a debug sphere at the closest approach point to verify rendering
-        const debugGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-        const debugMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-        const debugSphere = new THREE.Mesh(debugGeometry, debugMaterial);
-        debugSphere.position.set(0, 0, this.closestDistance);
-        this.scene.add(debugSphere);
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
@@ -164,9 +160,9 @@ class RelativisticSimulator {
         return 1.0 / Math.sqrt(1.0 - beta * beta);
     }
 
-    // Calculate the retarded time for a point
+    // Calculate the delayed time for a point
     // Given observer time t, find t' such that the light travel time matches
-    calculateRetardedTime(t, vertexPos, observerPos) {
+    calculateDelayedTime(t, vertexPos, observerPos) {
         const beta = this.velocity;
 
         // Actual position of object: x(t') = x0 + v*t'
@@ -218,19 +214,19 @@ class RelativisticSimulator {
         const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
         const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
 
-        // Choose the retarded time (past time, t' < t)
+        // Choose the delayed time (past time, t' < t)
         return Math.min(t1, t2);
     }
 
     // Calculate apparent position of vertex at observer time t
     getApparentPosition(t, vertexPosLocal) {
-        const tRetarded = this.calculateRetardedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
+        const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
 
-        // Position at retarded time
+        // Position at delayed time
         const v = this.velocity * C_VISUAL;
         const x0 = -50;
 
-        const x = x0 + v * tRetarded + vertexPosLocal.x;
+        const x = x0 + v * tDelayed + vertexPosLocal.x;
         const y = vertexPosLocal.y;
         const z = this.closestDistance + vertexPosLocal.z;
 
@@ -239,12 +235,12 @@ class RelativisticSimulator {
 
     // Calculate Doppler factor for a vertex
     getDopplerFactor(t, vertexPosLocal) {
-        const tRetarded = this.calculateRetardedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
+        const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
 
         const v = this.velocity * C_VISUAL;
         const x0 = -50;
 
-        const x = x0 + v * tRetarded + vertexPosLocal.x;
+        const x = x0 + v * tDelayed + vertexPosLocal.x;
         const y = vertexPosLocal.y;
         const z = this.closestDistance + vertexPosLocal.z;
 
