@@ -34,31 +34,32 @@ class RelativisticSimulator {
     init() {
         // Setup renderer
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setClearColor(0x000510);
+        this.renderer.setClearColor(0xffffff); // White background
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
         // Setup camera
-        // Position camera slightly back and to the side so we can see the trajectory
-        this.camera.position.set(0, 2, 8);
-        this.camera.lookAt(0, this.closestDistance, 0);
+        // Observer at origin, looking toward where object will pass to the side
+        this.camera.position.set(0, 0, 0);
+        this.camera.lookAt(0, 0, this.closestDistance);
 
         // Add orbit controls for better viewing
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.target.set(0, this.closestDistance, 0);
+        this.controls.target.set(0, 0, this.closestDistance);
+        this.controls.enableZoom = true;
 
         // Add lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         this.scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
         directionalLight.position.set(5, 5, 5);
         this.scene.add(directionalLight);
 
-        // Add reference grid
-        const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
-        gridHelper.position.y = -3;
+        // Add reference grid (horizontal)
+        const gridHelper = new THREE.GridHelper(50, 50, 0xcccccc, 0xeeeeee);
+        gridHelper.position.y = -2;
         this.scene.add(gridHelper);
 
         // Add axes helper
@@ -66,10 +67,10 @@ class RelativisticSimulator {
         this.scene.add(axesHelper);
 
         // Add a debug sphere at the closest approach point to verify rendering
-        const debugGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+        const debugGeometry = new THREE.SphereGeometry(0.3, 16, 16);
         const debugMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
         const debugSphere = new THREE.Mesh(debugGeometry, debugMaterial);
-        debugSphere.position.set(0, this.closestDistance, 0);
+        debugSphere.position.set(0, 0, this.closestDistance);
         this.scene.add(debugSphere);
 
         // Handle window resize
@@ -169,13 +170,13 @@ class RelativisticSimulator {
         const beta = this.velocity;
 
         // Actual position of object: x(t') = x0 + v*t'
-        // For object moving along x-axis, starting far left
+        // For object moving along x-axis, passing to the side
         // Distance from observer: |r(t') - r_obs| = c * (t - t')
 
-        // Object trajectory: moves along x-axis at height y = closestDistance
+        // Object trajectory: moves along x-axis at distance z = closestDistance
         // x(t') = -50 + v*C_VISUAL*t' (starts at x = -50)
-        // y(t') = closestDistance
-        // z(t') = 0
+        // y(t') = 0
+        // z(t') = closestDistance
 
         // Observer at origin (0, 0, 0)
 
@@ -192,20 +193,20 @@ class RelativisticSimulator {
 
         // Full 3D calculation
         // x(t') = x0 + v*t' + vx
-        // y(t') = closestDistance + vy
-        // z(t') = vz
+        // y(t') = vy
+        // z(t') = closestDistance + vz
 
-        const y0 = this.closestDistance;
+        const z0 = this.closestDistance;
 
-        // Distance squared: (x0 + v*t' + vx)^2 + (y0 + vy)^2 + vz^2 = C_VISUAL^2 * (t - t')^2
+        // Distance squared: (x0 + v*t' + vx)^2 + vy^2 + (z0 + vz)^2 = C_VISUAL^2 * (t - t')^2
 
-        // Expand: (x0 + vx)^2 + 2(x0 + vx)*v*t' + v^2*t'^2 + (y0 + vy)^2 + vz^2 = C_VISUAL^2 * (t^2 - 2*t*t' + t'^2)
+        // Expand: (x0 + vx)^2 + 2(x0 + vx)*v*t' + v^2*t'^2 + vy^2 + (z0 + vz)^2 = C_VISUAL^2 * (t^2 - 2*t*t' + t'^2)
 
-        // Rearrange: (v^2 - C_VISUAL^2)*t'^2 + (2*v*(x0 + vx) + 2*C_VISUAL^2*t)*t' + ((x0 + vx)^2 + (y0 + vy)^2 + vz^2 - C_VISUAL^2*t^2) = 0
+        // Rearrange: (v^2 - C_VISUAL^2)*t'^2 + (2*v*(x0 + vx) + 2*C_VISUAL^2*t)*t' + ((x0 + vx)^2 + vy^2 + (z0 + vz)^2 - C_VISUAL^2*t^2) = 0
 
         const a = v * v - C_VISUAL * C_VISUAL;
         const b = 2 * v * (x0 + vx) + 2 * C_VISUAL * C_VISUAL * t;
-        const c = (x0 + vx) * (x0 + vx) + (y0 + vy) * (y0 + vy) + vz * vz - C_VISUAL * C_VISUAL * t * t;
+        const c = (x0 + vx) * (x0 + vx) + vy * vy + (z0 + vz) * (z0 + vz) - C_VISUAL * C_VISUAL * t * t;
 
         // Solve quadratic equation
         const discriminant = b * b - 4 * a * c;
@@ -230,8 +231,8 @@ class RelativisticSimulator {
         const x0 = -50;
 
         const x = x0 + v * tRetarded + vertexPosLocal.x;
-        const y = this.closestDistance + vertexPosLocal.y;
-        const z = vertexPosLocal.z;
+        const y = vertexPosLocal.y;
+        const z = this.closestDistance + vertexPosLocal.z;
 
         return new THREE.Vector3(x, y, z);
     }
@@ -244,8 +245,8 @@ class RelativisticSimulator {
         const x0 = -50;
 
         const x = x0 + v * tRetarded + vertexPosLocal.x;
-        const y = this.closestDistance + vertexPosLocal.y;
-        const z = vertexPosLocal.z;
+        const y = vertexPosLocal.y;
+        const z = this.closestDistance + vertexPosLocal.z;
 
         // Vector from observer to vertex
         const r = new THREE.Vector3(x, y, z);
