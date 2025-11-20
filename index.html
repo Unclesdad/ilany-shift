@@ -50,6 +50,25 @@
             color: #aaa;
         }
 
+        .checkbox-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0;
+        }
+
         button {
             background: #4CAF50;
             border: none;
@@ -138,6 +157,16 @@
             <div class="value-display">
                 <span id="time-scale-value">1.0x</span>
             </div>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="show-actual" checked>
+            <label for="show-actual">Show Actual Position (length-contracted)</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="doppler-shift">
+            <label for="doppler-shift">Enable Doppler Color Shift</label>
         </div>
 
         <button id="play-pause">Pause Animation</button>

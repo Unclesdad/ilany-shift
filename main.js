@@ -24,7 +24,12 @@ class RelativisticSimulator {
         // Model
         this.originalGeometry = null;
         this.relativisticMesh = null;
+        this.actualPositionMesh = null; // Transparent mesh showing actual position
         this.defaultModelLoaded = false;
+
+        // Display options
+        this.showActualPosition = true;
+        this.enableDopplerShift = false;
 
         this.init();
         this.setupControls();
@@ -39,10 +44,10 @@ class RelativisticSimulator {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
         // Setup camera
-        // Observer effectively at origin, looking forward
+        // Observer effectively at origin, rotated 180 degrees to look backward initially
         // Position camera very slightly offset so OrbitControls can rotate
-        this.camera.position.set(0, 0, 0.01);
-        this.camera.lookAt(0, 0, this.closestDistance);
+        this.camera.position.set(0, 0, -0.01);
+        this.camera.lookAt(0, 0, 0);
 
         // Add orbit controls for rotation (camera orbits very close to origin)
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -67,10 +72,6 @@ class RelativisticSimulator {
         const gridHelper = new THREE.GridHelper(50, 50, 0xcccccc, 0xeeeeee);
         gridHelper.position.y = -2;
         this.scene.add(gridHelper);
-
-        // Add axes helper
-        const axesHelper = new THREE.AxesHelper(5);
-        this.scene.add(axesHelper);
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
@@ -160,6 +161,18 @@ class RelativisticSimulator {
             if (file) {
                 this.loadModelFromFile(file);
             }
+        });
+
+        // Checkbox controls
+        document.getElementById('show-actual').addEventListener('change', (e) => {
+            this.showActualPosition = e.target.checked;
+            if (this.actualPositionMesh) {
+                this.actualPositionMesh.visible = this.showActualPosition;
+            }
+        });
+
+        document.getElementById('doppler-shift').addEventListener('change', (e) => {
+            this.enableDopplerShift = e.target.checked;
         });
 
         // Initialize displays
@@ -354,11 +367,25 @@ class RelativisticSimulator {
             positions[i + 1] = apparentPos.y;
             positions[i + 2] = apparentPos.z;
 
-            // Use original colors without Doppler shift
+            // Apply colors (with or without Doppler shift)
             if (originalColors) {
-                colors[i] = originalColors[i];
-                colors[i + 1] = originalColors[i + 1];
-                colors[i + 2] = originalColors[i + 2];
+                let r = originalColors[i];
+                let g = originalColors[i + 1];
+                let b = originalColors[i + 2];
+
+                // Apply Doppler shift if enabled
+                if (this.enableDopplerShift) {
+                    const dopplerFactor = this.getDopplerFactor(t, rotatedPos);
+                    const originalColor = new THREE.Color(r, g, b);
+                    const shiftedColor = this.applyDopplerShift(originalColor, dopplerFactor);
+                    r = shiftedColor.r;
+                    g = shiftedColor.g;
+                    b = shiftedColor.b;
+                }
+
+                colors[i] = r;
+                colors[i + 1] = g;
+                colors[i + 2] = b;
             } else {
                 // Default gray color
                 colors[i] = 0.8;
@@ -906,13 +933,73 @@ class RelativisticSimulator {
         this.relativisticMesh = new THREE.Mesh(newGeometry, material);
         this.scene.add(this.relativisticMesh);
 
-        // Add wireframe for better visualization
-        const wireframe = new THREE.WireframeGeometry(newGeometry);
-        const line = new THREE.LineSegments(wireframe);
-        line.material.opacity = 0.1;
-        line.material.transparent = true;
-        line.material.color = new THREE.Color(0x00ffff);
-        this.relativisticMesh.add(line);
+        // Create actual position mesh (transparent, monochrome)
+        if (this.actualPositionMesh) {
+            this.scene.remove(this.actualPositionMesh);
+            this.actualPositionMesh.geometry.dispose();
+            this.actualPositionMesh.material.dispose();
+        }
+
+        const actualGeometry = geometry.clone();
+        const actualMaterial = new THREE.MeshLambertMaterial({
+            color: 0x888888, // Gray color
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide,
+            wireframe: false
+        });
+
+        this.actualPositionMesh = new THREE.Mesh(actualGeometry, actualMaterial);
+        this.actualPositionMesh.visible = this.showActualPosition;
+        this.scene.add(this.actualPositionMesh);
+
+        // Update mesh position immediately to avoid ghost at origin
+        this.updateRelativisticMesh();
+        this.updateActualPositionMesh();
+    }
+
+    updateActualPositionMesh() {
+        if (!this.actualPositionMesh || !this.originalGeometry) return;
+
+        const t = this.currentTime;
+        const positions = this.actualPositionMesh.geometry.attributes.position.array;
+        const originalPositions = this.originalGeometry.attributes.position.array;
+
+        const beta = this.velocity;
+        const gamma = this.getLorentzFactor(beta);
+        const v = beta * C_VISUAL;
+
+        // Object's center position at time t (no delayed time, just actual position)
+        const x0 = 0; // Object passes through x=0 at t=0
+        const centerX = x0 + v * t;
+        const centerY = 0;
+        const centerZ = this.closestDistance;
+
+        // Update each vertex
+        for (let i = 0; i < originalPositions.length; i += 3) {
+            const originalPos = new THREE.Vector3(
+                originalPositions[i],
+                originalPositions[i + 1],
+                originalPositions[i + 2]
+            );
+
+            // Apply rotation first
+            const rotatedPos = this.rotateVertexY(originalPos, this.rotation);
+
+            // Apply length contraction in the direction of motion (x-direction)
+            // Length contraction: L = L0 / gamma
+            const contractedX = rotatedPos.x / gamma;
+            const contractedY = rotatedPos.y; // No contraction perpendicular to motion
+            const contractedZ = rotatedPos.z;
+
+            // Position relative to object center
+            positions[i] = centerX + contractedX;
+            positions[i + 1] = centerY + contractedY;
+            positions[i + 2] = centerZ + contractedZ;
+        }
+
+        this.actualPositionMesh.geometry.attributes.position.needsUpdate = true;
+        this.actualPositionMesh.geometry.computeVertexNormals();
     }
 
     updateInfo() {
@@ -952,6 +1039,7 @@ class RelativisticSimulator {
 
         // Always update mesh and info, even when paused or manually controlled
         this.updateRelativisticMesh();
+        this.updateActualPositionMesh();
         this.updateInfo();
 
         this.controls.update();
