@@ -487,9 +487,14 @@ class RelativisticSimulator {
 
                         // Wait for texture image to load if it's not ready
                         if (texture.image && !texture.image.complete) {
-                            console.log('Waiting for texture to load...');
+                            console.log('Waiting for texture to load...', {
+                                complete: texture.image.complete,
+                                width: texture.image.width,
+                                height: texture.image.height
+                            });
+
                             const processGeometry = () => {
-                                console.log('Texture loaded, now extracting colors');
+                                console.log('Processing geometry with texture');
                                 this.addMaterialColorsToGeometry(geometry, material);
 
                                 // Center and scale the geometry
@@ -504,11 +509,29 @@ class RelativisticSimulator {
 
                             texture.image.onload = processGeometry;
 
-                            // Also check after a short delay in case onload already fired
+                            // Check multiple conditions after delays
                             setTimeout(() => {
-                                if (texture.image.complete && !this.defaultModelLoaded) {
-                                    console.log('Texture was already loaded, processing now');
-                                    processGeometry();
+                                console.log('Timeout check:', {
+                                    complete: texture.image.complete,
+                                    width: texture.image.width,
+                                    height: texture.image.height,
+                                    defaultModelLoaded: this.defaultModelLoaded
+                                });
+
+                                if (!this.defaultModelLoaded) {
+                                    // Process if texture has dimensions (image data loaded) OR if complete flag is set
+                                    if ((texture.image.width > 0 && texture.image.height > 0) || texture.image.complete) {
+                                        console.log('Texture has data, processing now');
+                                        processGeometry();
+                                    } else {
+                                        // Try again after another delay
+                                        setTimeout(() => {
+                                            if (!this.defaultModelLoaded) {
+                                                console.log('Second timeout check, forcing processing');
+                                                processGeometry();
+                                            }
+                                        }, 500);
+                                    }
                                 }
                             }, 100);
                             return;
@@ -752,9 +775,17 @@ class RelativisticSimulator {
 
                         // Wait for texture image to load
                         if (texture.image && !texture.image.complete) {
-                            console.log('Waiting for texture to load...');
+                            console.log('Waiting for texture to load...', {
+                                complete: texture.image.complete,
+                                width: texture.image.width,
+                                height: texture.image.height
+                            });
+
+                            let processed = false;
                             const processGeometry = () => {
-                                console.log('Texture loaded, now extracting colors');
+                                if (processed) return;
+                                processed = true;
+                                console.log('Processing geometry with texture');
                                 this.addMaterialColorsToGeometry(geometry, material);
 
                                 // Center and scale the geometry
@@ -769,11 +800,29 @@ class RelativisticSimulator {
 
                             texture.image.onload = processGeometry;
 
-                            // Also check after a short delay in case onload already fired
+                            // Check multiple conditions after delays
                             setTimeout(() => {
-                                if (texture.image.complete && document.getElementById('loading').style.display !== 'none') {
-                                    console.log('Texture was already loaded, processing now');
-                                    processGeometry();
+                                console.log('Timeout check:', {
+                                    complete: texture.image.complete,
+                                    width: texture.image.width,
+                                    height: texture.image.height,
+                                    processed: processed
+                                });
+
+                                if (!processed) {
+                                    // Process if texture has dimensions (image data loaded) OR if complete flag is set
+                                    if ((texture.image.width > 0 && texture.image.height > 0) || texture.image.complete) {
+                                        console.log('Texture has data, processing now');
+                                        processGeometry();
+                                    } else {
+                                        // Try again after another delay
+                                        setTimeout(() => {
+                                            if (!processed) {
+                                                console.log('Second timeout check, forcing processing');
+                                                processGeometry();
+                                            }
+                                        }, 500);
+                                    }
                                 }
                             }, 100);
                             return;
