@@ -37,8 +37,8 @@ class RelativisticSimulator {
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
         // Setup camera
-        // Observer at origin, looking toward where object will pass
-        this.camera.position.set(0, 0, 0);
+        // Position camera slightly back and to the side so we can see the trajectory
+        this.camera.position.set(0, 2, 8);
         this.camera.lookAt(0, this.closestDistance, 0);
 
         // Add orbit controls for better viewing
@@ -63,6 +63,13 @@ class RelativisticSimulator {
         // Add axes helper
         const axesHelper = new THREE.AxesHelper(5);
         this.scene.add(axesHelper);
+
+        // Add a debug sphere at the closest approach point to verify rendering
+        const debugGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+        const debugMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+        const debugSphere = new THREE.Mesh(debugGeometry, debugMaterial);
+        debugSphere.position.set(0, this.closestDistance, 0);
+        this.scene.add(debugSphere);
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
