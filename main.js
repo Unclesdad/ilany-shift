@@ -481,7 +481,31 @@ class RelativisticSimulator {
                 });
 
                 if (geometry) {
-                    // Add material color as vertex colors if geometry doesn't have them
+                    // Wait for texture to load before processing
+                    if (!geometry.attributes.color && material && material.map) {
+                        const texture = material.map;
+
+                        // Wait for texture image to load
+                        if (texture.image && !texture.image.complete) {
+                            console.log('Waiting for texture to load...');
+                            texture.image.onload = () => {
+                                console.log('Texture loaded, now extracting colors');
+                                this.addMaterialColorsToGeometry(geometry, material);
+
+                                // Center and scale the geometry
+                                geometry.center();
+                                geometry.computeBoundingSphere();
+                                const scale = 2.0 / geometry.boundingSphere.radius;
+                                geometry.scale(scale, scale, scale);
+
+                                this.setupRelativisticMesh(geometry);
+                                this.defaultModelLoaded = true;
+                            };
+                            return;
+                        }
+                    }
+
+                    // Texture already loaded or no texture
                     if (!geometry.attributes.color && material) {
                         this.addMaterialColorsToGeometry(geometry, material);
                     }
@@ -712,7 +736,31 @@ class RelativisticSimulator {
                 });
 
                 if (geometry) {
-                    // Add material color as vertex colors if geometry doesn't have them
+                    // Wait for texture to load before processing
+                    if (!geometry.attributes.color && material && material.map) {
+                        const texture = material.map;
+
+                        // Wait for texture image to load
+                        if (texture.image && !texture.image.complete) {
+                            console.log('Waiting for texture to load...');
+                            texture.image.onload = () => {
+                                console.log('Texture loaded, now extracting colors');
+                                this.addMaterialColorsToGeometry(geometry, material);
+
+                                // Center and scale the geometry
+                                geometry.center();
+                                geometry.computeBoundingSphere();
+                                const scale = 2.0 / geometry.boundingSphere.radius;
+                                geometry.scale(scale, scale, scale);
+
+                                this.setupRelativisticMesh(geometry);
+                                document.getElementById('loading').style.display = 'none';
+                            };
+                            return;
+                        }
+                    }
+
+                    // Texture already loaded or no texture
                     if (!geometry.attributes.color && material) {
                         this.addMaterialColorsToGeometry(geometry, material);
                     }
