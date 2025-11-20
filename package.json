@@ -1,0 +1,20 @@
+{
+  "name": "relativistic-speed-simulator",
+  "version": "1.0.0",
+  "description": "A Three.js simulation of relativistic visual effects including length contraction and Doppler shift",
+  "main": "main.js",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "serve": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "physics",
+    "relativity",
+    "three.js",
+    "simulation",
+    "doppler",
+    "special-relativity"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+.cache/
+
+# 3D model files (can be large)
+# Remove this line if you want to commit your model
+*.glb
+*.gltf
