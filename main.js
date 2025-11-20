@@ -481,14 +481,14 @@ class RelativisticSimulator {
                 });
 
                 if (geometry) {
-                    // Wait for texture to load before processing
+                    // Handle texture loading
                     if (!geometry.attributes.color && material && material.map) {
                         const texture = material.map;
 
-                        // Wait for texture image to load
+                        // Wait for texture image to load if it's not ready
                         if (texture.image && !texture.image.complete) {
                             console.log('Waiting for texture to load...');
-                            texture.image.onload = () => {
+                            const processGeometry = () => {
                                 console.log('Texture loaded, now extracting colors');
                                 this.addMaterialColorsToGeometry(geometry, material);
 
@@ -501,6 +501,16 @@ class RelativisticSimulator {
                                 this.setupRelativisticMesh(geometry);
                                 this.defaultModelLoaded = true;
                             };
+
+                            texture.image.onload = processGeometry;
+
+                            // Also check after a short delay in case onload already fired
+                            setTimeout(() => {
+                                if (texture.image.complete && !this.defaultModelLoaded) {
+                                    console.log('Texture was already loaded, processing now');
+                                    processGeometry();
+                                }
+                            }, 100);
                             return;
                         }
                     }
@@ -743,7 +753,7 @@ class RelativisticSimulator {
                         // Wait for texture image to load
                         if (texture.image && !texture.image.complete) {
                             console.log('Waiting for texture to load...');
-                            texture.image.onload = () => {
+                            const processGeometry = () => {
                                 console.log('Texture loaded, now extracting colors');
                                 this.addMaterialColorsToGeometry(geometry, material);
 
@@ -756,6 +766,16 @@ class RelativisticSimulator {
                                 this.setupRelativisticMesh(geometry);
                                 document.getElementById('loading').style.display = 'none';
                             };
+
+                            texture.image.onload = processGeometry;
+
+                            // Also check after a short delay in case onload already fired
+                            setTimeout(() => {
+                                if (texture.image.complete && document.getElementById('loading').style.display !== 'none') {
+                                    console.log('Texture was already loaded, processing now');
+                                    processGeometry();
+                                }
+                            }, 100);
                             return;
                         }
                     }
