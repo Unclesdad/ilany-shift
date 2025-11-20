@@ -327,26 +327,17 @@ class RelativisticSimulator {
             positions[i + 1] = apparentPos.y;
             positions[i + 2] = apparentPos.z;
 
-            // Calculate Doppler shift
-            const dopplerFactor = this.getDopplerFactor(t, originalPos);
-
-            // Get base color from original geometry or use gray default
-            let baseColor;
+            // Use original colors without Doppler shift
             if (originalColors) {
-                baseColor = new THREE.Color(
-                    originalColors[i],
-                    originalColors[i + 1],
-                    originalColors[i + 2]
-                );
+                colors[i] = originalColors[i];
+                colors[i + 1] = originalColors[i + 1];
+                colors[i + 2] = originalColors[i + 2];
             } else {
-                baseColor = new THREE.Color(0xcccccc);
+                // Default gray color
+                colors[i] = 0.8;
+                colors[i + 1] = 0.8;
+                colors[i + 2] = 0.8;
             }
-
-            const shiftedColor = this.applyDopplerShift(baseColor, dopplerFactor);
-
-            colors[i] = shiftedColor.r;
-            colors[i + 1] = shiftedColor.g;
-            colors[i + 2] = shiftedColor.b;
         }
 
         this.relativisticMesh.geometry.attributes.position.needsUpdate = true;
