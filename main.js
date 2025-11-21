@@ -590,17 +590,19 @@ class RelativisticSimulator {
                     this.setupRelativisticMesh(geometry);
                     this.defaultModelLoaded = true;
                 } else {
-                    console.warn('No mesh found in ilany.glb, using procedural face');
-                    this.loadProceduralFace();
+                    console.warn('No mesh found in ilany.glb');
+                    alert('No valid mesh found in model file. Please upload a different model.');
+                    this.defaultModelLoaded = true;
                 }
             },
             (progress) => {
                 console.log('Loading ilany.glb:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
             },
             (error) => {
-                // Failed to load - use procedural face as fallback
-                console.log('model/ilany.glb not found, using procedural face');
-                this.loadProceduralFace();
+                // Failed to load - show message and wait for user to upload
+                console.log('model/ilany.glb not found. Please upload a custom model.');
+                alert('No model found. Please click "Upload Custom Model" to load a 3D model.');
+                this.defaultModelLoaded = true; // Mark as "loaded" so we don't keep trying
             }
         );
     }
