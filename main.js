@@ -15,7 +15,7 @@ class RelativisticSimulator {
         // Simulation parameters
         this.velocity = 0.9; // Fraction of c
         this.closestDistance = 5; // Meters
-        this.staticRotation = 0; // Static rotation angle in radians
+        this.staticRotation = Math.PI / 2; // Static rotation angle in radians (90 degrees)
         this.angularVelocity = 0; // rad/s (positive = CW, negative = CCW)
         this.spinningEnabled = false; // Whether spinning mode is enabled
         this.timeScale = 1.0;
