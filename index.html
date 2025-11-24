@@ -135,7 +135,20 @@
             </div>
         </div>
 
-        <div class="control-group">
+        <div class="checkbox-group">
+            <input type="checkbox" id="enable-spinning">
+            <label for="enable-spinning">Enable Spinning</label>
+        </div>
+
+        <div class="control-group" id="rotation-group">
+            <label for="rotation">Model Rotation (degrees)</label>
+            <input type="range" id="rotation" min="0" max="360" step="1" value="0">
+            <div class="value-display">
+                <span id="rotation-value">0°</span>
+            </div>
+        </div>
+
+        <div class="control-group" id="angular-velocity-group" style="display: none;">
             <label for="angular-velocity">Angular Velocity (rad/s)</label>
             <input type="range" id="angular-velocity" min="-5" max="5" step="0.1" value="0">
             <div class="value-display">

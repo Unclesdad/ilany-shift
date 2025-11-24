@@ -15,7 +15,9 @@ class RelativisticSimulator {
         // Simulation parameters
         this.velocity = 0.9; // Fraction of c
         this.closestDistance = 5; // Meters
+        this.staticRotation = 0; // Static rotation angle in radians
         this.angularVelocity = 0; // rad/s (positive = CW, negative = CCW)
+        this.spinningEnabled = false; // Whether spinning mode is enabled
         this.timeScale = 1.0;
         this.currentTime = -10; // Start time (negative so object approaches from distance)
         this.animationRunning = true;
@@ -100,6 +102,32 @@ class RelativisticSimulator {
             distanceValue.textContent = `${this.closestDistance.toFixed(1)} m`;
         });
 
+        // Spinning mode checkbox
+        const enableSpinningCheckbox = document.getElementById('enable-spinning');
+        const rotationGroup = document.getElementById('rotation-group');
+        const angularVelocityGroup = document.getElementById('angular-velocity-group');
+
+        enableSpinningCheckbox.addEventListener('change', (e) => {
+            this.spinningEnabled = e.target.checked;
+            if (this.spinningEnabled) {
+                rotationGroup.style.display = 'none';
+                angularVelocityGroup.style.display = 'block';
+            } else {
+                rotationGroup.style.display = 'block';
+                angularVelocityGroup.style.display = 'none';
+            }
+        });
+
+        // Static rotation control
+        const rotationSlider = document.getElementById('rotation');
+        const rotationValue = document.getElementById('rotation-value');
+
+        rotationSlider.addEventListener('input', (e) => {
+            const degrees = parseFloat(e.target.value);
+            this.staticRotation = degrees * Math.PI / 180; // Convert to radians
+            rotationValue.textContent = `${degrees.toFixed(0)}°`;
+        });
+
         // Angular velocity control
         const angularVelocitySlider = document.getElementById('angular-velocity');
         const angularVelocityValue = document.getElementById('angular-velocity-value');
@@ -172,6 +200,7 @@ class RelativisticSimulator {
         // Initialize displays
         velocitySlider.dispatchEvent(new Event('input'));
         distanceSlider.dispatchEvent(new Event('input'));
+        rotationSlider.dispatchEvent(new Event('input'));
         angularVelocitySlider.dispatchEvent(new Event('input'));
         timeSlider.dispatchEvent(new Event('input'));
         timeScaleSlider.dispatchEvent(new Event('input'));
@@ -201,6 +230,33 @@ class RelativisticSimulator {
         const v = beta * C_VISUAL;
         const x0 = 0; // Object center passes through x=0 at t=0
         const z0 = this.closestDistance;
+
+        // If spinning is disabled, use static rotation
+        if (!this.spinningEnabled) {
+            // Use static rotation angle
+            const rotatedPos = this.rotateVertexY(vertexPosLocal, this.staticRotation);
+
+            // Solve for delayed time with static rotation (quadratic solution)
+            const vx = rotatedPos.x;
+            const vy = rotatedPos.y;
+            const vz = rotatedPos.z;
+
+            const a = v * v - C_VISUAL * C_VISUAL;
+            const b = 2 * v * (x0 + vx) + 2 * C_VISUAL * C_VISUAL * t;
+            const c = (x0 + vx) * (x0 + vx) + vy * vy + (z0 + vz) * (z0 + vz) - C_VISUAL * C_VISUAL * t * t;
+
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) {
+                return t;
+            }
+
+            const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
+            const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
+
+            return Math.min(t1, t2);
+        }
+
+        // Spinning mode: iterative solution
         const omega = this.angularVelocity;
 
         // Initial guess: use non-rotating solution
@@ -239,7 +295,12 @@ class RelativisticSimulator {
         const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
 
         // Calculate rotation angle at delayed time
-        const angle = this.angularVelocity * tDelayed;
+        let angle;
+        if (this.spinningEnabled) {
+            angle = this.angularVelocity * tDelayed;
+        } else {
+            angle = this.staticRotation;
+        }
         const rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
 
         // Position at delayed time
@@ -872,7 +933,12 @@ class RelativisticSimulator {
         const centerZ = this.closestDistance;
 
         // Rotation angle at current time
-        const angle = this.angularVelocity * t;
+        let angle;
+        if (this.spinningEnabled) {
+            angle = this.angularVelocity * t;
+        } else {
+            angle = this.staticRotation;
+        }
 
         // Update each vertex
         for (let i = 0; i < originalPositions.length; i += 3) {
