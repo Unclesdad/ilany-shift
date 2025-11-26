@@ -224,8 +224,8 @@ class RelativisticSimulator {
 
     // Calculate the delayed time for a point with rotation
     // Given observer time t, find t' such that the light travel time matches
-    // This is done iteratively since rotation depends on t'
-    calculateDelayedTime(t, vertexPosLocal, observerPos) {
+    // vertexPosRotated should be the vertex position AFTER rotation has been applied
+    calculateDelayedTime(t, vertexPosRotated, observerPos) {
         const beta = this.velocity;
         const v = beta * C_VISUAL;
         const x0 = 0; // Object center passes through x=0 at t=0
@@ -234,14 +234,11 @@ class RelativisticSimulator {
         // If spinning is disabled OR angular velocity is zero, use static rotation
         // (Using quadratic solution for accuracy and consistency)
         if (!this.spinningEnabled || Math.abs(this.angularVelocity) < 0.001) {
-            // Determine rotation angle
-            const rotationAngle = this.spinningEnabled ? 0 : this.staticRotation;
-            const rotatedPos = this.rotateVertexY(vertexPosLocal, rotationAngle);
-
             // Solve for delayed time with static rotation (quadratic solution)
-            const vx = rotatedPos.x;
-            const vy = rotatedPos.y;
-            const vz = rotatedPos.z;
+            // The vertex position passed in is already rotated
+            const vx = vertexPosRotated.x;
+            const vy = vertexPosRotated.y;
+            const vz = vertexPosRotated.z;
 
             const a = v * v - C_VISUAL * C_VISUAL;
             const b = 2 * v * (x0 + vx) + 2 * C_VISUAL * C_VISUAL * t;
@@ -267,7 +264,13 @@ class RelativisticSimulator {
         }
 
         // Spinning mode with non-zero angular velocity: iterative solution
+        // For spinning objects, we need to find the delayed time iteratively
+        // because the rotation angle depends on the delayed time itself
         const omega = this.angularVelocity;
+
+        // Note: vertexPosRotated here is the LOCAL unrotated position
+        // We'll rotate it based on the delayed time we're solving for
+        const vertexPosLocal = vertexPosRotated;
 
         // Better initial guess: estimate based on object center position at time t
         const centerX = x0 + v * t;
@@ -316,28 +319,45 @@ class RelativisticSimulator {
 
     // Calculate apparent position of vertex at observer time t
     getApparentPosition(t, vertexPosLocal) {
-        const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
-
-        // Calculate rotation angle at delayed time
+        // Determine rotation angle
         let angle;
-        if (this.spinningEnabled) {
-            // When spinning is enabled, angle depends on angular velocity and delayed time
-            angle = this.angularVelocity * tDelayed;
+        let rotatedPos;
+
+        if (!this.spinningEnabled || Math.abs(this.angularVelocity) < 0.001) {
+            // Static rotation: apply rotation first, then solve for delayed time
+            angle = this.spinningEnabled ? 0 : this.staticRotation;
+            rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
+
+            // Calculate delayed time using the rotated position
+            const tDelayed = this.calculateDelayedTime(t, rotatedPos, new THREE.Vector3(0, 0, 0));
+
+            // Position at delayed time (rotation already applied)
+            const v = this.velocity * C_VISUAL;
+            const x0 = 0; // Object passes through x=0 at t=0
+
+            const x = x0 + v * tDelayed + rotatedPos.x;
+            const y = rotatedPos.y;
+            const z = this.closestDistance + rotatedPos.z;
+
+            return new THREE.Vector3(x, y, z);
         } else {
-            // When spinning is disabled, use static rotation angle
-            angle = this.staticRotation;
+            // Spinning: calculateDelayedTime handles rotation internally
+            const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
+
+            // Calculate rotation at the delayed time
+            angle = this.angularVelocity * tDelayed;
+            rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
+
+            // Position at delayed time
+            const v = this.velocity * C_VISUAL;
+            const x0 = 0; // Object passes through x=0 at t=0
+
+            const x = x0 + v * tDelayed + rotatedPos.x;
+            const y = rotatedPos.y;
+            const z = this.closestDistance + rotatedPos.z;
+
+            return new THREE.Vector3(x, y, z);
         }
-        const rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
-
-        // Position at delayed time
-        const v = this.velocity * C_VISUAL;
-        const x0 = 0; // Object passes through x=0 at t=0
-
-        const x = x0 + v * tDelayed + rotatedPos.x;
-        const y = rotatedPos.y;
-        const z = this.closestDistance + rotatedPos.z;
-
-        return new THREE.Vector3(x, y, z);
     }
 
     updateRelativisticMesh() {
