@@ -283,7 +283,7 @@ class RelativisticSimulator {
 
         // Iteratively refine tDelayed with damping for stability
         let prevTDelayed = tDelayed;
-        for (let iter = 0; iter < 15; iter++) {
+        for (let iter = 0; iter < 30; iter++) {
             // Calculate rotated position at this delayed time
             const angle = omega * tDelayed;
             const rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
