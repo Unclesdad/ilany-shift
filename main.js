@@ -15,7 +15,9 @@ class RelativisticSimulator {
         // Simulation parameters
         this.velocity = 0.9; // Fraction of c
         this.closestDistance = 5; // Meters
-        this.rotation = Math.PI / 2; // 90 degrees in radians (CCW around Y-axis)
+        this.staticRotation = Math.PI / 2; // Static rotation angle in radians (90 degrees)
+        this.angularVelocity = 0; // rad/s (positive = CW, negative = CCW)
+        this.spinningEnabled = false; // Whether spinning mode is enabled
         this.timeScale = 1.0;
         this.currentTime = -10; // Start time (negative so object approaches from distance)
         this.animationRunning = true;
@@ -29,7 +31,6 @@ class RelativisticSimulator {
 
         // Display options
         this.showActualPosition = false;
-        this.enableDopplerShift = false;
 
         this.init();
         this.setupControls();
@@ -101,14 +102,39 @@ class RelativisticSimulator {
             distanceValue.textContent = `${this.closestDistance.toFixed(1)} m`;
         });
 
-        // Rotation control
+        // Spinning mode checkbox
+        const enableSpinningCheckbox = document.getElementById('enable-spinning');
+        const rotationGroup = document.getElementById('rotation-group');
+        const angularVelocityGroup = document.getElementById('angular-velocity-group');
+
+        enableSpinningCheckbox.addEventListener('change', (e) => {
+            this.spinningEnabled = e.target.checked;
+            if (this.spinningEnabled) {
+                rotationGroup.style.display = 'none';
+                angularVelocityGroup.style.display = 'block';
+            } else {
+                rotationGroup.style.display = 'block';
+                angularVelocityGroup.style.display = 'none';
+            }
+        });
+
+        // Static rotation control
         const rotationSlider = document.getElementById('rotation');
         const rotationValue = document.getElementById('rotation-value');
 
         rotationSlider.addEventListener('input', (e) => {
             const degrees = parseFloat(e.target.value);
-            this.rotation = degrees * Math.PI / 180; // Convert to radians
+            this.staticRotation = degrees * Math.PI / 180; // Convert to radians
             rotationValue.textContent = `${degrees.toFixed(0)}°`;
+        });
+
+        // Angular velocity control
+        const angularVelocitySlider = document.getElementById('angular-velocity');
+        const angularVelocityValue = document.getElementById('angular-velocity-value');
+
+        angularVelocitySlider.addEventListener('input', (e) => {
+            this.angularVelocity = parseFloat(e.target.value);
+            angularVelocityValue.textContent = `${this.angularVelocity.toFixed(1)} rad/s`;
         });
 
         // Time slider control
@@ -171,14 +197,11 @@ class RelativisticSimulator {
             }
         });
 
-        document.getElementById('doppler-shift').addEventListener('change', (e) => {
-            this.enableDopplerShift = e.target.checked;
-        });
-
         // Initialize displays
         velocitySlider.dispatchEvent(new Event('input'));
         distanceSlider.dispatchEvent(new Event('input'));
         rotationSlider.dispatchEvent(new Event('input'));
+        angularVelocitySlider.dispatchEvent(new Event('input'));
         timeSlider.dispatchEvent(new Event('input'));
         timeScaleSlider.dispatchEvent(new Event('input'));
     }
@@ -199,145 +222,142 @@ class RelativisticSimulator {
         );
     }
 
-    // Calculate the delayed time for a point
+    // Calculate the delayed time for a point with rotation
     // Given observer time t, find t' such that the light travel time matches
-    calculateDelayedTime(t, vertexPos, observerPos) {
+    // vertexPosRotated should be the vertex position AFTER rotation has been applied
+    calculateDelayedTime(t, vertexPosRotated, observerPos) {
         const beta = this.velocity;
-
-        // Actual position of object: x(t') = x0 + v*t'
-        // For object moving along x-axis, passing to the side
-        // Distance from observer: |r(t') - r_obs| = c * (t - t')
-
-        // Object trajectory: moves along x-axis at distance z = closestDistance
-        // x(t') = x0 + v*C_VISUAL*t'
-        // y(t') = 0
-        // z(t') = closestDistance
-
-        // Observer at origin (0, 0, 0)
-
-        // We need to solve: |r(t') - r_obs| = C_VISUAL * (t - t')
-        // This is a quadratic equation in t'
-
         const v = beta * C_VISUAL;
-        // Scale starting position so object passes through x=0 at t=0
-        // This ensures it passes by the camera for any velocity
-        const x0 = 0;
-
-        // Vertex position in object frame (relative to object center)
-        const vx = vertexPos.x;
-        const vy = vertexPos.y;
-        const vz = vertexPos.z;
-
-        // Full 3D calculation
-        // x(t') = x0 + v*t' + vx
-        // y(t') = vy
-        // z(t') = closestDistance + vz
-
+        const x0 = 0; // Object center passes through x=0 at t=0
         const z0 = this.closestDistance;
 
-        // Distance squared: (x0 + v*t' + vx)^2 + vy^2 + (z0 + vz)^2 = C_VISUAL^2 * (t - t')^2
+        // If spinning is disabled OR angular velocity is zero, use static rotation
+        // (Using quadratic solution for accuracy and consistency)
+        if (!this.spinningEnabled || Math.abs(this.angularVelocity) < 0.001) {
+            // Solve for delayed time with static rotation (quadratic solution)
+            // The vertex position passed in is already rotated
+            const vx = vertexPosRotated.x;
+            const vy = vertexPosRotated.y;
+            const vz = vertexPosRotated.z;
 
-        // Expand: (x0 + vx)^2 + 2(x0 + vx)*v*t' + v^2*t'^2 + vy^2 + (z0 + vz)^2 = C_VISUAL^2 * (t^2 - 2*t*t' + t'^2)
+            const a = v * v - C_VISUAL * C_VISUAL;
+            const b = 2 * v * (x0 + vx) + 2 * C_VISUAL * C_VISUAL * t;
+            const c = (x0 + vx) * (x0 + vx) + vy * vy + (z0 + vz) * (z0 + vz) - C_VISUAL * C_VISUAL * t * t;
 
-        // Rearrange: (v^2 - C_VISUAL^2)*t'^2 + (2*v*(x0 + vx) + 2*C_VISUAL^2*t)*t' + ((x0 + vx)^2 + vy^2 + (z0 + vz)^2 - C_VISUAL^2*t^2) = 0
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) {
+                // No real solution - return approximate delayed time
+                const approxDist = Math.sqrt((x0 + vx) * (x0 + vx) + vy * vy + (z0 + vz) * (z0 + vz));
+                return t - approxDist / C_VISUAL;
+            }
 
-        const a = v * v - C_VISUAL * C_VISUAL;
-        const b = 2 * v * (x0 + vx) + 2 * C_VISUAL * C_VISUAL * t;
-        const c = (x0 + vx) * (x0 + vx) + vy * vy + (z0 + vz) * (z0 + vz) - C_VISUAL * C_VISUAL * t * t;
+            const sqrtDisc = Math.sqrt(discriminant);
+            const t1 = (-b - sqrtDisc) / (2 * a);
+            const t2 = (-b + sqrtDisc) / (2 * a);
 
-        // Solve quadratic equation
-        const discriminant = b * b - 4 * a * c;
+            // Choose the solution that represents light from the past (t' < t)
+            const tDelayed = Math.min(t1, t2);
 
-        if (discriminant < 0) {
-            return t; // No solution, use current time
+            // Clamp to reasonable range
+            const maxDelay = 20;
+            return Math.max(tDelayed, t - maxDelay);
         }
 
-        const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
-        const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
+        // Spinning mode with non-zero angular velocity: iterative solution
+        // For spinning objects, we need to find the delayed time iteratively
+        // because the rotation angle depends on the delayed time itself
+        const omega = this.angularVelocity;
 
-        // Choose the delayed time (past time, t' < t)
-        return Math.min(t1, t2);
+        // Note: vertexPosRotated here is the LOCAL unrotated position
+        // We'll rotate it based on the delayed time we're solving for
+        const vertexPosLocal = vertexPosRotated;
+
+        // Better initial guess: estimate based on object center position at time t
+        const centerX = x0 + v * t;
+        const centerDist = Math.sqrt(centerX * centerX + z0 * z0);
+        let tDelayed = t - centerDist / C_VISUAL;
+
+        // Clamp to reasonable range to prevent extreme values
+        const maxDelay = 20; // Don't look more than 20 seconds into the past
+        tDelayed = Math.max(tDelayed, t - maxDelay);
+
+        // Iteratively refine tDelayed with damping for stability
+        let prevTDelayed = tDelayed;
+        for (let iter = 0; iter < 30; iter++) {
+            // Calculate rotated position at this delayed time
+            const angle = omega * tDelayed;
+            const rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
+
+            // World position at delayed time
+            const worldX = x0 + v * tDelayed + rotatedPos.x;
+            const worldY = rotatedPos.y;
+            const worldZ = z0 + rotatedPos.z;
+
+            // Distance from observer to this position
+            const distance = Math.sqrt(worldX * worldX + worldY * worldY + worldZ * worldZ);
+
+            // Update delayed time based on light travel time
+            let newTDelayed = t - distance / C_VISUAL;
+
+            // Clamp to reasonable range
+            newTDelayed = Math.max(newTDelayed, t - maxDelay);
+
+            // Apply damping to prevent oscillation (blend 80% new, 20% old)
+            newTDelayed = 0.8 * newTDelayed + 0.2 * tDelayed;
+
+            // Check for convergence
+            if (Math.abs(newTDelayed - tDelayed) < 0.0001) {
+                return newTDelayed;
+            }
+
+            prevTDelayed = tDelayed;
+            tDelayed = newTDelayed;
+        }
+
+        return tDelayed;
     }
 
     // Calculate apparent position of vertex at observer time t
     getApparentPosition(t, vertexPosLocal) {
-        const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
+        // Determine rotation angle
+        let angle;
+        let rotatedPos;
 
-        // Position at delayed time
-        const v = this.velocity * C_VISUAL;
-        const x0 = 0; // Object passes through x=0 at t=0
+        if (!this.spinningEnabled || Math.abs(this.angularVelocity) < 0.001) {
+            // Static rotation: apply rotation first, then solve for delayed time
+            angle = this.spinningEnabled ? 0 : this.staticRotation;
+            rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
 
-        const x = x0 + v * tDelayed + vertexPosLocal.x;
-        const y = vertexPosLocal.y;
-        const z = this.closestDistance + vertexPosLocal.z;
+            // Calculate delayed time using the rotated position
+            const tDelayed = this.calculateDelayedTime(t, rotatedPos, new THREE.Vector3(0, 0, 0));
 
-        return new THREE.Vector3(x, y, z);
-    }
+            // Position at delayed time (rotation already applied)
+            const v = this.velocity * C_VISUAL;
+            const x0 = 0; // Object passes through x=0 at t=0
 
-    // Calculate Doppler factor for a vertex
-    getDopplerFactor(t, vertexPosLocal) {
-        const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
+            const x = x0 + v * tDelayed + rotatedPos.x;
+            const y = rotatedPos.y;
+            const z = this.closestDistance + rotatedPos.z;
 
-        const v = this.velocity * C_VISUAL;
-        const x0 = 0; // Object passes through x=0 at t=0
+            return new THREE.Vector3(x, y, z);
+        } else {
+            // Spinning: calculateDelayedTime handles rotation internally
+            const tDelayed = this.calculateDelayedTime(t, vertexPosLocal, new THREE.Vector3(0, 0, 0));
 
-        const x = x0 + v * tDelayed + vertexPosLocal.x;
-        const y = vertexPosLocal.y;
-        const z = this.closestDistance + vertexPosLocal.z;
+            // Calculate rotation at the delayed time
+            angle = this.angularVelocity * tDelayed;
+            rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
 
-        // Vector from observer to vertex
-        const r = new THREE.Vector3(x, y, z);
-        const rMag = r.length();
+            // Position at delayed time
+            const v = this.velocity * C_VISUAL;
+            const x0 = 0; // Object passes through x=0 at t=0
 
-        if (rMag < 0.001) return 1.0;
+            const x = x0 + v * tDelayed + rotatedPos.x;
+            const y = rotatedPos.y;
+            const z = this.closestDistance + rotatedPos.z;
 
-        // Velocity vector (along x-axis)
-        const vel = new THREE.Vector3(v, 0, 0);
-
-        // Component of velocity along line of sight (radial velocity)
-        const vRadial = vel.dot(r) / rMag;
-
-        // Doppler factor: f_observed / f_emitted = sqrt((1 - beta) / (1 + beta)) for recession
-        // More generally: f_obs / f_emit = 1 / (gamma * (1 + beta * cos(theta)))
-        // where theta is angle between velocity and line to observer
-
-        const beta = this.velocity;
-        const gamma = this.getLorentzFactor(beta);
-
-        // cos(theta) = -vRadial / (v * 1) (negative because we want angle from velocity to observer)
-        const cosTheta = -vRadial / (v * 1.0 + 0.0001);
-
-        // Relativistic Doppler factor
-        const dopplerFactor = 1.0 / (gamma * (1.0 - beta * cosTheta));
-
-        return dopplerFactor;
-    }
-
-    // Apply Doppler shift to color
-    applyDopplerShift(originalColor, dopplerFactor) {
-        // dopplerFactor > 1: blueshift (approaching)
-        // dopplerFactor < 1: redshift (receding)
-
-        // Convert color to HSL and shift hue
-        const color = new THREE.Color(originalColor);
-        const hsl = { h: 0, s: 0, l: 0 };
-        color.getHSL(hsl);
-
-        // Map Doppler factor to hue shift
-        // Factor of 2 = full blueshift, factor of 0.5 = full redshift
-        const logFactor = Math.log2(dopplerFactor);
-        const hueShift = logFactor * 0.15; // Adjust sensitivity
-
-        // Shift hue (0.66 = blue, 0 = red in HSL)
-        let newHue = hsl.h + hueShift;
-        newHue = Math.max(0, Math.min(1, newHue));
-
-        // Also adjust brightness based on Doppler factor
-        const newL = hsl.l * Math.pow(dopplerFactor, 0.5);
-
-        color.setHSL(newHue, hsl.s, Math.max(0.1, Math.min(0.9, newL)));
-
-        return color;
+            return new THREE.Vector3(x, y, z);
+        }
     }
 
     updateRelativisticMesh() {
@@ -357,35 +377,18 @@ class RelativisticSimulator {
                 originalPositions[i + 2]
             );
 
-            // Apply rotation to the original position
-            const rotatedPos = this.rotateVertexY(originalPos, this.rotation);
-
-            // Get apparent position with rotation applied
-            const apparentPos = this.getApparentPosition(t, rotatedPos);
+            // Get apparent position (rotation is handled inside based on delayed time)
+            const apparentPos = this.getApparentPosition(t, originalPos);
 
             positions[i] = apparentPos.x;
             positions[i + 1] = apparentPos.y;
             positions[i + 2] = apparentPos.z;
 
-            // Apply colors (with or without Doppler shift)
+            // Apply colors
             if (originalColors) {
-                let r = originalColors[i];
-                let g = originalColors[i + 1];
-                let b = originalColors[i + 2];
-
-                // Apply Doppler shift if enabled
-                if (this.enableDopplerShift) {
-                    const dopplerFactor = this.getDopplerFactor(t, rotatedPos);
-                    const originalColor = new THREE.Color(r, g, b);
-                    const shiftedColor = this.applyDopplerShift(originalColor, dopplerFactor);
-                    r = shiftedColor.r;
-                    g = shiftedColor.g;
-                    b = shiftedColor.b;
-                }
-
-                colors[i] = r;
-                colors[i + 1] = g;
-                colors[i + 2] = b;
+                colors[i] = originalColors[i];
+                colors[i + 1] = originalColors[i + 1];
+                colors[i + 2] = originalColors[i + 2];
             } else {
                 // Default gray color
                 colors[i] = 0.8;
@@ -975,6 +978,14 @@ class RelativisticSimulator {
         const centerY = 0;
         const centerZ = this.closestDistance;
 
+        // Rotation angle at current time
+        let angle;
+        if (this.spinningEnabled) {
+            angle = this.angularVelocity * t;
+        } else {
+            angle = this.staticRotation;
+        }
+
         // Update each vertex
         for (let i = 0; i < originalPositions.length; i += 3) {
             const originalPos = new THREE.Vector3(
@@ -984,7 +995,7 @@ class RelativisticSimulator {
             );
 
             // Apply rotation first
-            const rotatedPos = this.rotateVertexY(originalPos, this.rotation);
+            const rotatedPos = this.rotateVertexY(originalPos, angle);
 
             // Apply length contraction in the direction of motion (x-direction)
             // Length contraction: L = L0 / gamma
