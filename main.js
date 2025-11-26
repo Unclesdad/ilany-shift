@@ -231,10 +231,12 @@ class RelativisticSimulator {
         const x0 = 0; // Object center passes through x=0 at t=0
         const z0 = this.closestDistance;
 
-        // If spinning is disabled, use static rotation
-        if (!this.spinningEnabled) {
-            // Use static rotation angle
-            const rotatedPos = this.rotateVertexY(vertexPosLocal, this.staticRotation);
+        // If spinning is disabled OR angular velocity is zero, use static rotation
+        // (Using quadratic solution for accuracy and consistency)
+        if (!this.spinningEnabled || Math.abs(this.angularVelocity) < 0.001) {
+            // Determine rotation angle
+            const rotationAngle = this.spinningEnabled ? 0 : this.staticRotation;
+            const rotatedPos = this.rotateVertexY(vertexPosLocal, rotationAngle);
 
             // Solve for delayed time with static rotation (quadratic solution)
             const vx = rotatedPos.x;
@@ -264,7 +266,7 @@ class RelativisticSimulator {
             return Math.max(tDelayed, t - maxDelay);
         }
 
-        // Spinning mode: iterative solution
+        // Spinning mode with non-zero angular velocity: iterative solution
         const omega = this.angularVelocity;
 
         // Better initial guess: estimate based on object center position at time t
@@ -319,8 +321,10 @@ class RelativisticSimulator {
         // Calculate rotation angle at delayed time
         let angle;
         if (this.spinningEnabled) {
+            // When spinning is enabled, angle depends on angular velocity and delayed time
             angle = this.angularVelocity * tDelayed;
         } else {
+            // When spinning is disabled, use static rotation angle
             angle = this.staticRotation;
         }
         const rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
