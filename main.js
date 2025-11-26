@@ -247,23 +247,38 @@ class RelativisticSimulator {
 
             const discriminant = b * b - 4 * a * c;
             if (discriminant < 0) {
-                return t;
+                // No real solution - return approximate delayed time
+                const approxDist = Math.sqrt((x0 + vx) * (x0 + vx) + vy * vy + (z0 + vz) * (z0 + vz));
+                return t - approxDist / C_VISUAL;
             }
 
-            const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
-            const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
+            const sqrtDisc = Math.sqrt(discriminant);
+            const t1 = (-b - sqrtDisc) / (2 * a);
+            const t2 = (-b + sqrtDisc) / (2 * a);
 
-            return Math.min(t1, t2);
+            // Choose the solution that represents light from the past (t' < t)
+            const tDelayed = Math.min(t1, t2);
+
+            // Clamp to reasonable range
+            const maxDelay = 20;
+            return Math.max(tDelayed, t - maxDelay);
         }
 
         // Spinning mode: iterative solution
         const omega = this.angularVelocity;
 
-        // Initial guess: use non-rotating solution
-        let tDelayed = t - this.closestDistance / C_VISUAL;
+        // Better initial guess: estimate based on object center position at time t
+        const centerX = x0 + v * t;
+        const centerDist = Math.sqrt(centerX * centerX + z0 * z0);
+        let tDelayed = t - centerDist / C_VISUAL;
 
-        // Iteratively refine tDelayed
-        for (let iter = 0; iter < 10; iter++) {
+        // Clamp to reasonable range to prevent extreme values
+        const maxDelay = 20; // Don't look more than 20 seconds into the past
+        tDelayed = Math.max(tDelayed, t - maxDelay);
+
+        // Iteratively refine tDelayed with damping for stability
+        let prevTDelayed = tDelayed;
+        for (let iter = 0; iter < 15; iter++) {
             // Calculate rotated position at this delayed time
             const angle = omega * tDelayed;
             const rotatedPos = this.rotateVertexY(vertexPosLocal, angle);
@@ -277,13 +292,20 @@ class RelativisticSimulator {
             const distance = Math.sqrt(worldX * worldX + worldY * worldY + worldZ * worldZ);
 
             // Update delayed time based on light travel time
-            const newTDelayed = t - distance / C_VISUAL;
+            let newTDelayed = t - distance / C_VISUAL;
+
+            // Clamp to reasonable range
+            newTDelayed = Math.max(newTDelayed, t - maxDelay);
+
+            // Apply damping to prevent oscillation (blend 80% new, 20% old)
+            newTDelayed = 0.8 * newTDelayed + 0.2 * tDelayed;
 
             // Check for convergence
             if (Math.abs(newTDelayed - tDelayed) < 0.0001) {
                 return newTDelayed;
             }
 
+            prevTDelayed = tDelayed;
             tDelayed = newTDelayed;
         }
 
